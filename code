@@ -1,0 +1,87 @@
+import json
+import os
+from xml.etree.ElementTree import Element, SubElement, tostring
+import xml.dom.minidom
+
+# Define the paths to the input MS COCO JSON segmentation annotation file and the output directory for the VOC XML annotations
+coco_json_file = '/path/to/coco/annotation.json'
+output_dir = '/path/to/output/xml'
+
+# Define the names of the categories in your MS COCO JSON segmentation annotation file
+coco_categories = {
+    1: 'person',
+    2: 'bicycle',
+    3: 'car',
+    4: 'motorcycle',
+    5: 'airplane',
+    6: 'bus',
+    7: 'train',
+    8: 'truck',
+    9: 'boat',
+    10: 'traffic light',
+    # Add the names of the categories in your MS COCO JSON segmentation annotation file here
+}
+
+# Define the names of the classes in your VOC XML annotations
+voc_classes = [
+    'person',
+    'vehicle',
+    'object',
+    # Add the names of the classes in your VOC XML annotations here
+]
+
+# Create the output directory for the VOC XML annotations if it doesn't already exist
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+# Load the MS COCO JSON segmentation annotation file
+with open(coco_json_file, 'r') as f:
+    coco_json = json.load(f)
+
+# Iterate over the images in the MS COCO JSON segmentation annotation file
+for image in coco_json['images']:
+    # Create a new VOC XML annotation for the current image
+    annotation = Element('annotation')
+    folder = SubElement(annotation, 'folder')
+    folder.text = 'coco'
+    filename = SubElement(annotation, 'filename')
+    filename.text = image['file_name']
+    source = SubElement(annotation, 'source')
+    database = SubElement(source, 'database')
+    database.text = 'MS COCO'
+    size = SubElement(annotation, 'size')
+    width = SubElement(size, 'width')
+    width.text = str(image['width'])
+    height = SubElement(size, 'height')
+    height.text = str(image['height'])
+    depth = SubElement(size, 'depth')
+    depth.text = '3'
+    segmented = SubElement(annotation, 'segmented')
+    segmented.text = '1'
+
+    # Iterate over the annotations for the current image in the MS COCO JSON segmentation annotation file
+    for coco_annotation in coco_json['annotations']:
+        if coco_annotation['image_id'] == image['id']:
+            # Create a new object element in the VOC XML annotation for the current annotation
+            object = SubElement(annotation, 'object')
+            name = SubElement(object, 'name')
+            name.text = coco_categories[coco_annotation['category_id']]
+            if name.text in voc_classes:
+                bndbox = SubElement(object, 'bndbox')
+                x, y, w, h = coco_annotation['bbox']
+                xmin = SubElement(bndbox, 'xmin')
+                xmin.text = str(int(x))
+                ymin = SubElement(bndbox, 'ymin')
+                ymin.text = str(int(y))
+                xmax = SubElement(bndbox, 'xmax')
+                xmax.text = str(int(x + w))
+                ymax = SubElement(bndbox, 'ymax')
+                ymax.text = str(int(y + h))
+                difficult = SubElement(object, 'difficult')
+                difficult.text = '0'
+
+    # Save the VOC XML annotation for the current image to a file
+    output_file = os.path.join(output_dir, os.path.splitext(image['file_name'])[0] + '.xml')
+    xml_str = xml.dom.minidom.parseString(tostring(annotation)).toprettyxml(indent='  ')
+    with open(output_file, 'w') as f:
+        f.write(xml_str)
